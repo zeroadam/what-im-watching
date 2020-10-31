@@ -1,3 +1,4 @@
+using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -6,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
 
 namespace what_im_watching
 {
@@ -21,8 +23,17 @@ namespace what_im_watching
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<ApplicationDbContext>(opt =>
-               opt.UseInMemoryDatabase("ProductionList"));
+            // get the license server database connection info from application settings
+            string connectionString = this.Configuration.GetConnectionString("DefaultConnection");
+
+            if (!string.IsNullOrWhiteSpace(connectionString))
+            {
+                services.AddDbContext<ApplicationDbContext>(opt => opt.UseSqlServer(connectionString));
+            }
+            else
+            {
+                services.AddDbContext<ApplicationDbContext>(opt => opt.UseInMemoryDatabase("ProductionList"));
+            }
 
             services.AddControllersWithViews();
 
@@ -47,6 +58,15 @@ namespace what_im_watching
                 app.UseHsts();
             }
 
+            var settingsSection = this.Configuration.GetSection("ApplicationSettings");
+            var autoMigrate = settingsSection.GetSection("AutoMigrate").Value;
+            
+            if (autoMigrate.ToLower() == "true")
+            {
+                // initialize the database via migrations.
+                InitializeDatabase(app);
+            }
+
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseSpaStaticFiles();
@@ -69,6 +89,28 @@ namespace what_im_watching
                     spa.UseReactDevelopmentServer(npmScript: "start");
                 }
             });
+        }
+
+        /// <summary>
+        /// This method is used to execute database migrations.
+        /// </summary>
+        /// <param name="app">Contains the application builder.</param>
+        private static void InitializeDatabase(IApplicationBuilder app)
+        {
+            using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
+            {
+                var appContext = serviceScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                try
+                {
+                    // execute the application database migrations
+                    appContext.Database.Migrate();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "An error occurred while attempting to migrate the application data tables.");
+                }
+            }
         }
     }
 }

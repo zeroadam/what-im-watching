@@ -28,7 +28,7 @@ namespace what_im_watching.Controllers
 
         // GET: api/Productions/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Production>> GetProduction(string id)
+        public async Task<ActionResult<Production>> GetProduction(int id)
         {
             var production = await _context.Productions.FindAsync(id);
 
@@ -44,7 +44,7 @@ namespace what_im_watching.Controllers
         // To protect from overposting attacks, enable the specific properties you want to bind to, for
         // more details, see https://go.microsoft.com/fwlink/?linkid=2123754.
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutProduction(string id, Production production)
+        public async Task<IActionResult> PutProduction(int id, Production production)
         {
             if (id != production.ProductionId)
             {
@@ -79,28 +79,14 @@ namespace what_im_watching.Controllers
         public async Task<ActionResult<Production>> PostProduction(Production production)
         {
             _context.Productions.Add(production);
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException)
-            {
-                if (ProductionExists(production.ProductionId))
-                {
-                    return Conflict();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetProduction", new { id = production.ProductionId }, production);
         }
 
         // DELETE: api/Productions/5
         [HttpDelete("{id}")]
-        public async Task<ActionResult<Production>> DeleteProduction(string id)
+        public async Task<ActionResult<Production>> DeleteProduction(int id)
         {
             var production = await _context.Productions.FindAsync(id);
             if (production == null)
@@ -114,7 +100,7 @@ namespace what_im_watching.Controllers
             return production;
         }
 
-        private bool ProductionExists(string id)
+        private bool ProductionExists(int id)
         {
             return _context.Productions.Any(e => e.ProductionId == id);
         }
